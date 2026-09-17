@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multiview — watch up to 6 at once</title>
+<style>
+  :root{
+    --bg: #0c0e0c;
+    --bezel: #171916;
+    --bezel-edge: #24261f;
+    --amber: #ffb627;
+    --teal: #3ec9a7;
+    --text: #e8e6de;
+    --muted: #7a7d74;
+    --danger: #d9634b;
+    --radius: 6px;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg: #0c0e0c;
+      --bezel: #171916;
+      --bezel-edge: #24261f;
+      --text: #e8e6de;
+      --muted: #7a7d74;
+    }
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', 'SF Mono', 'Courier New', monospace;
+    min-height:100vh;
+    padding: 24px;
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(62,201,167,0.05), transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(255,182,39,0.05), transparent 40%);
+  }
+
+  header{
+    max-width:1200px;
+    margin: 0 auto 20px auto;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:16px;
+    border-bottom: 1px solid var(--bezel-edge);
+    padding-bottom:16px;
+  }
+  h1{
+    font-size: clamp(22px, 4vw, 34px);
+    margin:0;
+    letter-spacing: -0.5px;
+    font-weight:700;
+  }
+  h1 span{ color: var(--amber); }
+  .subtitle{
+    color: var(--muted);
+    font-size:13px;
+    margin-top:6px;
+    max-width:46ch;
+    line-height:1.5;
+  }
+  .status{
+    font-size:12px;
+    color: var(--muted);
+    text-align:right;
+  }
+  .status b{ color: var(--teal); }
+
+  .intake{
+    max-width:1200px;
+    margin: 0 auto 24px auto;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .intake textarea{
+    flex:1;
+    min-width:260px;
+    background: var(--bezel);
+    border: 1px solid var(--bezel-edge);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: inherit;
+    font-size:13px;
+    padding:12px;
+    resize: vertical;
+    min-height:44px;
+    line-height:1.5;
+  }
+  .intake textarea::placeholder{ color: var(--muted); }
+  .intake textarea:focus, button:focus-visible, input:focus-visible{
+    outline: 2px solid var(--teal);
+    outline-offset:2px;
+  }
+  .intake-actions{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    justify-content:center;
+  }
+  button{
+    font-family: inherit;
+    font-size:13px;
+    border-radius: var(--radius);
+    border: 1px solid var(--bezel-edge);
+    padding: 10px 16px;
+    cursor:pointer;
+    background: var(--bezel);
+    color: var(--text);
+    transition: border-color .15s ease, transform .1s ease;
+    white-space:nowrap;
+  }
+  button:hover{ border-color: var(--teal); }
+  button:active{ transform: scale(0.98); }
+  .btn-primary{
+    background: var(--amber);
+    color: #1a1400;
+    border-color: var(--amber);
+    font-weight:700;
+  }
+  .btn-primary:hover{ border-color: var(--amber); opacity:0.92; }
+  .btn-danger:hover{ border-color: var(--danger); }
+
+  .grid{
+    max-width:1200px;
+    margin: 0 auto;
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  @media (max-width: 900px){
+    .grid{ grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 560px){
+    .grid{ grid-template-columns: 1fr; }
+  }
+
+  .tile{
+    background: var(--bezel);
+    border: 1px solid var(--bezel-edge);
+    border-radius: var(--radius);
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+  .tile-frame{
+    position:relative;
+    width:100%;
+    aspect-ratio: 16/9;
+    background:#000;
+  }
+  .tile-frame iframe{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    border:0;
+  }
+  .tile-empty{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color: var(--muted);
+    font-size:12px;
+    text-align:center;
+    padding:12px;
+    height:100%;
+  }
+  .tile-bar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:7px 10px;
+    font-size:11px;
+    color: var(--muted);
+    gap:8px;
+  }
+  .tile-label{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    flex:1;
+  }
+  .tile-num{ color: var(--teal); margin-right:6px; }
+  .tile-controls{ display:flex; gap:6px; flex-shrink:0; }
+  .tile-controls button{
+    padding:4px 8px;
+    font-size:11px;
+  }
+  .tile-controls button.active{
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+
+  footer{
+    max-width:1200px;
+    margin: 24px auto 0 auto;
+    color: var(--muted);
+    font-size:11px;
+    text-align:center;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>MULTI<span>VIEW</span></h1>
+    <div class="subtitle">Paste up to 6 YouTube links or video IDs. They all load and play at once, like a wall of monitors.</div>
+  </div>
+  <div class="status" id="status">0 / 6 screens filled</div>
+</header>
+
+<div class="intake">
+  <textarea id="urlInput" placeholder="Paste 1-6 YouTube links or video IDs, one per line, then hit Load Wall..."></textarea>
+  <div class="intake-actions">
+    <button class="btn-primary" id="loadBtn">Load wall</button>
+    <button class="btn-danger" id="clearBtn">Clear all</button>
+  </div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<footer>Autoplay starts muted (browser rule) — click the sound button on any tile to unmute it.</footer>
+
+<script>
+  const SLOTS = 6;
+  const grid = document.getElementById('grid');
+  const status = document.getElementById('status');
+  let sources = new Array(SLOTS).fill(null); // { id, label }
+
+  function extractVideoId(raw){
+    const s = raw.trim();
+    if(!s) return null;
+    // bare 11-char id
+    if(/^[a-zA-Z0-9_-]{11}$/.test(s)) return s;
+    try{
+      const url = new URL(s.includes('://') ? s : 'https://' + s);
+      if(url.hostname.includes('youtu.be')){
+        const id = url.pathname.split('/').filter(Boolean)[0];
+        if(id) return id;
+      }
+      if(url.hostname.includes('youtube.com')){
+        if(url.searchParams.get('v')) return url.searchParams.get('v');
+        const parts = url.pathname.split('/').filter(Boolean);
+        // /embed/ID or /shorts/ID or /live/ID
+        if(parts.length >= 2 && ['embed','shorts','live'].includes(parts[0])) return parts[1];
+      }
+    }catch(e){ /* fall through */ }
+    return null;
+  }
+
+  function renderTile(i){
+    const src = sources[i];
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+
+    const frameWrap = document.createElement('div');
+    frameWrap.className = 'tile-frame';
+
+    if(src){
+      const iframe = document.createElement('iframe');
+      iframe.id = 'yt-' + i;
+      iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
+      iframe.allowFullscreen = true;
+      iframe.src = `https://www.youtube.com/embed/${src.id}?autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1`;
+      frameWrap.appendChild(iframe);
+    } else {
+      const empty = document.createElement('div');
+      empty.className = 'tile-empty';
+      empty.textContent = `Screen ${i + 1} — empty`;
+      frameWrap.appendChild(empty);
+    }
+
+    const bar = document.createElement('div');
+    bar.className = 'tile-bar';
+
+    const label = document.createElement('div');
+    label.className = 'tile-label';
+    label.innerHTML = `<span class="tile-num">${String(i+1).padStart(2,'0')}</span>${src ? src.id : 'no source'}`;
+
+    const controls = document.createElement('div');
+    controls.className = 'tile-controls';
+
+    if(src){
+      const muteBtn = document.createElement('button');
+      muteBtn.textContent = src.muted === false ? 'sound on' : 'muted';
+      muteBtn.className = src.muted === false ? 'active' : '';
+      muteBtn.onclick = () => toggleMute(i);
+      controls.appendChild(muteBtn);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = 'remove';
+      removeBtn.onclick = () => removeSlot(i);
+      controls.appendChild(removeBtn);
+    }
+
+    bar.appendChild(label);
+    bar.appendChild(controls);
+
+    tile.appendChild(frameWrap);
+    tile.appendChild(bar);
+    return tile;
+  }
+
+  function toggleMute(i){
+    const src = sources[i];
+    if(!src) return;
+    src.muted = src.muted === false ? true : false;
+    const iframe = document.getElementById('yt-' + i);
+    if(iframe){
+      const cmd = src.muted ? 'mute' : 'unMute';
+      iframe.contentWindow.postMessage(JSON.stringify({event:'command', func: cmd, args:[]}), '*');
+    }
+    renderAll();
+  }
+
+  function removeSlot(i){
+    sources[i] = null;
+    renderAll();
+  }
+
+  function renderAll(){
+    grid.innerHTML = '';
+    let filled = 0;
+    for(let i = 0; i < SLOTS; i++){
+      if(sources[i]) filled++;
+      grid.appendChild(renderTile(i));
+    }
+    status.innerHTML = `<b>${filled}</b> / ${SLOTS} screens filled`;
+  }
+
+  document.getElementById('loadBtn').addEventListener('click', () => {
+    const lines = document.getElementById('urlInput').value
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean)
+      .slice(0, SLOTS);
+
+    if(lines.length === 0) return;
+
+    const ids = lines.map(extractVideoId).filter(Boolean);
+    sources = new Array(SLOTS).fill(null);
+    ids.slice(0, SLOTS).forEach((id, i) => {
+      sources[i] = { id, muted: true };
+    });
+    renderAll();
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    sources = new Array(SLOTS).fill(null);
+    document.getElementById('urlInput').value = '';
+    renderAll();
+  });
+
+  renderAll();
+</script>
+
+</body>
+</html>
